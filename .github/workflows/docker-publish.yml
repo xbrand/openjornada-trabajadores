@@ -153,10 +153,14 @@ jobs:
       - name: Verify base packages are not known-vulnerable
         run: |
           set -euo pipefail
-          INSTALLED=$(docker run --rm --platform linux/amd64 \
+          INSTALLED=$(docker run --rm --platform linux/amd64 --entrypoint sh \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }} \
-            sh -c "apk info -v | grep -E '^(brotli-libs|libxslt|libxml2|zlib)-' | tr '\n' ' '")
+            -c "apk info -v | grep -E '^(brotli-libs|libxslt|libxml2|zlib)-' | tr '\n' ' '")
           echo "installed base packages: $INSTALLED"
+          if [ -z "$INSTALLED" ]; then
+            echo "::error::Could not read the package list from the published image"
+            exit 1
+          fi
           # Versions known to be affected by:
           #   CVE-2026-111497 (brotli-libs), CVE-2026-125350 (libxslt),
           #   CVE-2026-4738 (zlib), plus the older zlib revision.
