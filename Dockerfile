@@ -32,6 +32,19 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
+# Apply every available security update to the base image.
+#
+# The "nginx:alpine" tag is a moving target, so an image built months ago
+# freezes whatever the Alpine repositories offered at that moment. The
+# published image had shipped brotli-libs 1.2.0-r1, libxslt 1.1.43-r3 and
+# zlib 1.3.2-r1, which are affected by:
+#   CVE-2026-111497  buffer overflow in the Brotli decoder (critical)
+#   CVE-2026-125350  use-after-free in XML handling via libxslt (high)
+#   CVE-2026-4738   out-of-bounds write in zlib (critical)
+# Upgrading here guarantees the rebuilt image carries the patched packages
+# regardless of when the base image was published.
+RUN apk upgrade --no-cache
+
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

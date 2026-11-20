@@ -150,6 +150,26 @@ jobs:
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
+      - name: Verify base packages are not known-vulnerable
+        run: |
+          set -euo pipefail
+          INSTALLED=$(docker run --rm --platform linux/amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }} \
+            sh -c "apk info -v | grep -E '^(brotli-libs|libxslt|libxml2|zlib)-' | tr '\n' ' '")
+          echo "installed base packages: $INSTALLED"
+          # Versions known to be affected by:
+          #   CVE-2026-111497 (brotli-libs), CVE-2026-125350 (libxslt),
+          #   CVE-2026-4738 (zlib), plus the older zlib revision.
+          for bad in brotli-libs-1.2.0-r1 libxslt-1.1.43-r3 zlib-1.3.2-r1 zlib-1.3.2-r0; do
+            case " $INSTALLED " in
+              *" $bad "*)
+                echo "::error::Vulnerable package present in the published image: $bad"
+                exit 1
+                ;;
+            esac
+          done
+          echo "OK: no known-vulnerable base package versions in the published image"
+
       - name: Output image info
         run: |
           echo "## Docker Image Published" >> $GITHUB_STEP_SUMMARY
